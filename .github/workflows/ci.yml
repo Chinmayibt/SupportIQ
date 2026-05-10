@@ -21,6 +21,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Inference loads model.joblib / vectorizer.joblib / label_encoder.joblib (not committed; see .gitignore).
+      - name: Materialize model artifacts for tests
+        env:
+          PYTHONPATH: .
+        run: python -c "from src.train import train; train()"
+
       - name: Run tests
         env:
           PYTHONPATH: .
