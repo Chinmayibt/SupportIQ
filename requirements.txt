@@ -1,0 +1,3 @@
+-r backend/requirements.txt
+mlflow>=2.10
+pytest>=7.0
