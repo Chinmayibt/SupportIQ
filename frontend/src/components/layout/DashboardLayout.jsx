@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
+import { ActionTodosProvider } from "../../context/ActionTodosContext";
 import { DashboardDataProvider } from "../../context/DashboardDataContext";
 import TopNavbar from "./TopNavbar";
 import AppSidebar from "./AppSidebar";
@@ -26,7 +27,9 @@ function DashboardShell() {
 export default function DashboardLayout() {
   return (
     <DashboardDataProvider>
-      <DashboardShell />
+      <ActionTodosProvider>
+        <DashboardShell />
+      </ActionTodosProvider>
     </DashboardDataProvider>
   );
 }

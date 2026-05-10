@@ -22,15 +22,15 @@ def resolve_recommended_action(
     sentiment: str,
     confidence_score: float,
 ) -> ActionResult:
-    """Resolve deterministic action first, then optional LLM enhancement."""
+    """When Groq/OpenAI-compatible LLM is configured, try it first; else use rules."""
     rule_action = recommend_action(intent)
-    should_try_llm = rule_action == DEFAULT_RECOMMENDED_ACTION or confidence_score < 0.7
 
-    if llm_is_enabled() and should_try_llm:
+    if llm_is_enabled():
         llm_action = generate_llm_recommendation(
             text=text,
             intent=intent,
             business_category=business_category,
+            main_class=main_class,
             priority=priority,
             sentiment=sentiment,
         )

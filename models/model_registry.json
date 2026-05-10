@@ -1,6 +1,13 @@
 {
   "active_version": "model_v1.pkl",
-  "last_retrained_at": null,
-  "last_accuracy": null,
-  "history": []
+  "last_retrained_at": "2026-05-10T17:39:28.330606+00:00",
+  "last_accuracy": 0.991442542787286,
+  "history": [
+    {
+      "version": "model_v1.pkl",
+      "created_at": "2026-05-10T17:39:28.330606+00:00",
+      "accuracy": 0.991442542787286,
+      "mlflow_run_id": "4e834a68a0464891aac454c33f50a700"
+    }
+  ]
 }

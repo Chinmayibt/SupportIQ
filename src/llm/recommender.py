@@ -20,6 +20,7 @@ def generate_llm_recommendation(
     text: str,
     intent: str,
     business_category: str,
+    main_class: str,
     priority: str,
     sentiment: str,
     timeout_seconds: float = 12.0,
@@ -44,7 +45,8 @@ def generate_llm_recommendation(
     user_prompt = (
         f"Ticket text: {text}\n"
         f"Predicted intent: {intent}\n"
-        f"Business category: {business_category}\n"
+        f"Ticket classification (Complaint, Inquiry, or Feedback): {main_class}\n"
+        f"Business routing label: {business_category}\n"
         f"Priority: {priority}\n"
         f"Sentiment: {sentiment}\n\n"
         "Return strict JSON only with this schema:\n"

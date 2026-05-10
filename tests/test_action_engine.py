@@ -1,7 +1,8 @@
 from src.features.action_engine import resolve_recommended_action
 
 
-def test_action_engine_rule_path():
+def test_action_engine_rule_path(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     result = resolve_recommended_action(
         text="I forgot my password",
         intent="recover_password",

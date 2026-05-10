@@ -92,6 +92,37 @@ def model_status() -> dict:
     }
 
 
+def _retrain_model_handler() -> dict:
+    """Run full training + versioning (same as `python -m src.retrain`) and reload the inference service."""
+    global service
+    try:
+        from src.retrain import run_retraining
+
+        payload = run_retraining()
+        try:
+            service = PredictionService()
+        except Exception:
+            service = None
+        return {"ok": True, **payload}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Retraining failed: {exc}") from exc
+
+
+# Both paths: dev proxy strips /api; some clients set VITE_API_BASE_URL to .../api and call the backend directly.
+app.add_api_route(
+    "/model/retrain",
+    _retrain_model_handler,
+    methods=["POST"],
+    tags=["model"],
+)
+app.add_api_route(
+    "/api/model/retrain",
+    _retrain_model_handler,
+    methods=["POST"],
+    tags=["model"],
+)
+
+
 @app.get("/dashboard")
 def dashboard(limit: int = 15) -> dict:
     """Single payload endpoint to avoid repetitive frontend multi-calls."""

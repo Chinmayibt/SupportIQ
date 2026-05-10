@@ -1,6 +1,7 @@
 """Inference and enrichment service functions."""
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 import joblib
@@ -11,7 +12,7 @@ from src.features.action_engine import resolve_recommended_action
 from src.features.business_mapping import map_intent_to_business_category
 from src.features.main_class_mapping import map_intent_to_main_class
 from src.features.rules import predict_priority
-from src.logging.prediction_logger import log_prediction
+from src.logging.prediction_logger import FIELDS, log_prediction
 from src.nlp.multilingual import detect_and_translate
 from src.nlp.preprocess import _bootstrap_nltk
 
@@ -58,6 +59,26 @@ class PredictionService:
         ]
         return any(term in normalized for term in feedback_terms)
 
+    @staticmethod
+    def _intent_probability_rows(label_encoder, probabilities) -> list[dict]:
+        classes = label_encoder.classes_
+        rows = [
+            {"intent": str(classes[i]), "probability": round(float(probabilities[i]), 6)}
+            for i in range(len(classes))
+        ]
+        rows.sort(key=lambda r: -r["probability"])
+        return rows
+
+    def _main_class_probability_rows(self, label_encoder, probabilities) -> list[dict]:
+        agg: defaultdict[str, float] = defaultdict(float)
+        for i, raw_intent in enumerate(label_encoder.classes_):
+            intent = str(raw_intent)
+            mc = map_intent_to_main_class(intent)
+            agg[mc] += float(probabilities[i])
+        rows = [{"main_class": k, "probability": round(v, 6)} for k, v in agg.items()]
+        rows.sort(key=lambda r: -r["probability"])
+        return rows
+
     def predict(self, text: str, transcript_text: str | None = None) -> dict:
         language_result = detect_and_translate(text)
         model_text = language_result.translated_text
@@ -74,6 +95,8 @@ class PredictionService:
 
         business_category = map_intent_to_business_category(intent)
         priority = predict_priority(intent, model_text)
+        intent_probabilities = self._intent_probability_rows(self.label_encoder, probabilities)
+        main_class_probabilities = self._main_class_probability_rows(self.label_encoder, probabilities)
         action_result = resolve_recommended_action(
             text=model_text,
             intent=intent,
@@ -94,8 +117,16 @@ class PredictionService:
             "sentiment": sentiment,
             "priority": priority,
             "confidence_score": round(confidence, 4),
+            "main_class_probabilities": main_class_probabilities,
+            "intent_probabilities": intent_probabilities,
             "recommended_action": action_result.recommended_action,
             "action_source": action_result.action_source,
         }
-        log_prediction({"input_text": text, "model_version": self.model_version, **payload})
+        log_row = {"input_text": text, "model_version": self.model_version}
+        for field in FIELDS:
+            if field in ("timestamp", "input_text"):
+                continue
+            if field in payload:
+                log_row[field] = payload[field]
+        log_prediction(log_row)
         return payload

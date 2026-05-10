@@ -35,6 +35,8 @@ def test_predict_contract():
         "sentiment",
         "priority",
         "confidence_score",
+        "main_class_probabilities",
+        "intent_probabilities",
         "recommended_action",
         "detected_language",
         "translated_text",
@@ -42,6 +44,10 @@ def test_predict_contract():
     ]:
         assert key in payload
     assert payload["main_class"] in {"Complaint", "Inquiry", "Feedback"}
+    assert isinstance(payload["main_class_probabilities"], list)
+    assert isinstance(payload["intent_probabilities"], list)
+    assert len(payload["main_class_probabilities"]) >= 1
+    assert len(payload["intent_probabilities"]) >= 1
 
 
 def test_analytics_contract():
@@ -57,8 +63,31 @@ def test_analytics_contract():
         "kpi",
         "category_distribution",
         "ticket_trend",
+        "intent_distribution",
     ]:
         assert key in payload
+
+
+def test_model_retrain_contract(monkeypatch):
+    monkeypatch.setattr(
+        "src.retrain.run_retraining",
+        lambda: {
+            "active_version": "model_v2.pkl",
+            "last_retrained_at": "2026-01-01T00:00:00+00:00",
+            "last_accuracy": 0.91,
+            "history": [],
+        },
+    )
+    with TestClient(app) as client:
+        response = client.post("/model/retrain")
+        response_api = client.post("/api/model/retrain")
+    assert response.status_code == 200
+    assert response_api.status_code == 200
+    payload = response.json()
+    assert payload.get("ok") is True
+    assert payload.get("active_version") == "model_v2.pkl"
+    assert payload.get("last_accuracy") == 0.91
+    assert response_api.json() == payload
 
 
 def test_alerts_and_recent_logs_contract():

@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Mic,
@@ -10,18 +10,23 @@ import {
 } from "lucide-react";
 
 const items = [
-  { hash: "#overview", label: "Dashboard", icon: LayoutDashboard },
-  { hash: "#predictions", label: "Predictions", icon: LineChart },
-  { hash: "#analytics", label: "Analytics", icon: BarChart3 },
-  { hash: "#logs", label: "Logs", icon: ClipboardList },
-  { hash: "#voice", label: "Voice Support", icon: Mic },
-  { hash: "#settings", label: "Settings", icon: Settings },
+  { to: "/dashboard/overview", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard/predictions", label: "Predictions", icon: LineChart },
+  { to: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/dashboard/logs", label: "Logs", icon: ClipboardList },
+  { to: "/dashboard/voice", label: "Voice Support", icon: Mic },
+  { to: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-export default function AppSidebar({ mobileOpen, onClose }) {
-  const { hash } = useLocation();
-  const activeHash = hash || "#overview";
+const linkClass = ({ isActive }) =>
+  [
+    "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+    isActive
+      ? "border-l-4 border-[#6366F1] bg-[#6366F1]/10 text-[#6366F1]"
+      : "border-l-4 border-transparent text-[#6B7280] hover:bg-[#F5F7FB] hover:text-[#111827]",
+  ].join(" ");
 
+export default function AppSidebar({ mobileOpen, onClose }) {
   return (
     <>
       {mobileOpen ? (
@@ -50,25 +55,17 @@ export default function AppSidebar({ mobileOpen, onClose }) {
           </button>
         </div>
         <nav className="flex flex-col gap-1 p-4">
-          {items.map(({ hash: href, label, icon: Icon }) => {
-            const isActive = activeHash === href || (href === "#overview" && !hash);
-            return (
-              <a
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={[
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
-                  isActive
-                    ? "border-l-4 border-[#6366F1] bg-[#6366F1]/10 text-[#6366F1]"
-                    : "border-l-4 border-transparent text-[#6B7280] hover:bg-[#F5F7FB] hover:text-[#111827]",
-                ].join(" ")}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {label}
-              </a>
-            );
-          })}
+          {items.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={linkClass}
+              onClick={onClose}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {label}
+            </NavLink>
+          ))}
         </nav>
       </aside>
     </>

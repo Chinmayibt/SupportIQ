@@ -17,11 +17,43 @@ def _value_counts(df: pd.DataFrame, column: str) -> List[Dict[str, Any]]:
     return counts.to_dict(orient="records")
 
 
+def _intent_distribution(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Per-intent query counts, sorted by count descending (for charts)."""
+    if df.empty or "intent" not in df.columns:
+        return []
+    series = df["intent"].astype(str).str.strip()
+    series = series.replace("", pd.NA).dropna()
+    if series.empty:
+        return []
+    vc = series.value_counts().reset_index()
+    vc.columns = ["intent", "count"]
+    vc["count"] = vc["count"].astype(int)
+    return vc.to_dict(orient="records")
+
+
 def _empty_kpi() -> Dict[str, Any]:
     return {"total_tickets": 0, "complaints": 0, "avg_confidence": 0.0, "active_languages": 0}
 
 
-def _compute_kpi(df: pd.DataFrame, language_distribution: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _active_language_count(df: pd.DataFrame) -> int:
+    """Count distinct raw detected languages (case-insensitive); matches real ticket diversity."""
+    if df.empty:
+        return 0
+    col = None
+    if "detected_language" in df.columns:
+        col = df["detected_language"]
+    elif "language_detected" in df.columns:
+        col = df["language_detected"]
+    if col is None:
+        return 0
+    series = col.dropna().astype(str).str.strip()
+    series = series[series.str.len() > 0]
+    if series.empty:
+        return 0
+    return int(series.str.lower().nunique())
+
+
+def _compute_kpi(df: pd.DataFrame) -> Dict[str, Any]:
     total = int(len(df))
     complaints = int((df["main_class"] == "Complaint").sum()) if "main_class" in df.columns else 0
     if "confidence_score" in df.columns and len(df):
@@ -29,7 +61,7 @@ def _compute_kpi(df: pd.DataFrame, language_distribution: List[Dict[str, Any]]) 
         avg_conf = float(conf.mean()) if len(conf) else 0.0
     else:
         avg_conf = 0.0
-    active_languages = len(language_distribution)
+    active_languages = _active_language_count(df)
     return {
         "total_tickets": total,
         "complaints": complaints,
@@ -60,6 +92,8 @@ def get_prediction_analytics() -> Dict[str, Any]:
             "kpi": _empty_kpi(),
             "category_distribution": [],
             "ticket_trend": [],
+            "intent_distribution": [],
+            "prediction_log_exists": False,
         }
         return {**base_payload, **_model_metadata(), **compute_alerts(pd.DataFrame())}
 
@@ -73,11 +107,29 @@ def get_prediction_analytics() -> Dict[str, Any]:
             "kpi": _empty_kpi(),
             "category_distribution": [],
             "ticket_trend": [],
+            "intent_distribution": [],
+            "prediction_log_exists": True,
         }
         return {**base_payload, **_model_metadata(), **compute_alerts(pd.DataFrame())}
 
+    rows_before_filter = len(df)
     df = _normalize_dataframe_for_dashboard(df)
     df = _filter_valid_rows(df)
+    if df.empty:
+        base_payload = {
+            "total_predictions": 0,
+            "main_class_distribution": [],
+            "sentiment_distribution": [],
+            "language_distribution": [],
+            "kpi": _empty_kpi(),
+            "category_distribution": [],
+            "ticket_trend": [],
+            "intent_distribution": [],
+            "prediction_log_exists": True,
+            "prediction_rows_skipped": rows_before_filter,
+        }
+        return {**base_payload, **_model_metadata(), **compute_alerts(pd.DataFrame())}
+
     if "sentiment" in df:
         df["sentiment_normalized"] = df["sentiment"].apply(_normalize_sentiment)
     else:
@@ -112,7 +164,8 @@ def get_prediction_analytics() -> Dict[str, Any]:
         _value_counts(df, "business_category") if "business_category" in df.columns else []
     )
     ticket_trend = _compute_ticket_trend(df)
-    kpi = _compute_kpi(df, language_distribution)
+    kpi = _compute_kpi(df)
+    intent_distribution = _intent_distribution(df)
     return {
         "total_predictions": int(len(df)),
         "main_class_distribution": class_distribution,
@@ -121,6 +174,8 @@ def get_prediction_analytics() -> Dict[str, Any]:
         "kpi": kpi,
         "category_distribution": category_distribution,
         "ticket_trend": ticket_trend,
+        "intent_distribution": intent_distribution,
+        "prediction_log_exists": True,
         **_model_metadata(),
         **compute_alerts(df),
     }
@@ -199,21 +254,38 @@ def _normalize_language(value: Any) -> str:
 
 
 def _filter_valid_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep rows with a valid main_class only; do not drop rows for minor priority formatting issues."""
     clean = df.copy()
-    if "priority" in clean.columns:
-        valid_priorities = {"Low", "Medium", "High", "Critical"}
-        clean = clean[clean["priority"].isin(valid_priorities)]
     if "main_class" in clean.columns:
         valid_classes = {"Complaint", "Inquiry", "Feedback"}
         clean = clean[clean["main_class"].isin(valid_classes)]
     return clean
 
 
+def _canonical_main_class(value: Any) -> str | None:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    lower = text.lower()
+    if lower == "complaint":
+        return "Complaint"
+    if lower == "inquiry":
+        return "Inquiry"
+    if lower == "feedback":
+        return "Feedback"
+    if text in {"Complaint", "Inquiry", "Feedback"}:
+        return text
+    return None
+
+
 def _normalize_dataframe_for_dashboard(df: pd.DataFrame) -> pd.DataFrame:
     clean = df.copy()
     if "timestamp" in clean.columns:
         clean["timestamp"] = pd.to_datetime(clean["timestamp"], errors="coerce", utc=True)
-        clean = clean.dropna(subset=["timestamp"])
+        if clean["timestamp"].notna().any():
+            clean = clean[clean["timestamp"].notna()]
 
     if "intent" not in clean.columns:
         clean["intent"] = None
@@ -221,6 +293,10 @@ def _normalize_dataframe_for_dashboard(df: pd.DataFrame) -> pd.DataFrame:
         clean["main_class"] = None
 
     clean["main_class"] = clean["main_class"].fillna(clean["intent"].apply(_derive_main_class_from_intent))
+    clean["main_class"] = [
+        _canonical_main_class(mc) or _derive_main_class_from_intent(intent)
+        for mc, intent in zip(clean["main_class"], clean["intent"])
+    ]
 
     # Backward compatibility for older logs that used `assigned_team`.
     if "action_source" not in clean.columns:

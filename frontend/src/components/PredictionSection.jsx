@@ -1,15 +1,29 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useActionTodos } from "../context/ActionTodosContext";
 import { useDashboardContext } from "../context/DashboardDataContext";
+import { EXAMPLE_TICKETS } from "../data/exampleTickets";
 import PredictionResultCards from "./PredictionResultCards";
 import AudioTicketForm from "./AudioTicketForm";
 
-export default function PredictionSection() {
+/**
+ * @param {{ mode?: "text" | "voice" | "both" }} props
+ */
+export default function PredictionSection({ mode = "both" }) {
   const { refresh, apiBase } = useDashboardContext();
+  const { addFromPrediction } = useActionTodos();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [prediction, setPrediction] = useState(null);
+
+  const showText = mode === "text" || mode === "both";
+  const showVoice = mode === "voice" || mode === "both";
+
+  function applyExample(sample) {
+    setText(sample.text);
+    setError("");
+  }
 
   async function handlePredict() {
     if (!text.trim()) {
@@ -29,6 +43,7 @@ export default function PredictionSection() {
         throw new Error(data.detail || "Prediction failed.");
       }
       setPrediction(data);
+      addFromPrediction({ ...data, input_text: text.trim() });
       await refresh();
     } catch (err) {
       setError(err.message);
@@ -37,12 +52,30 @@ export default function PredictionSection() {
     }
   }
 
-  return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-      <div className="space-y-6">
+  const leftColumn = (
+    <div className="space-y-6">
+      {showText ? (
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-[#111827]">Text ticket</h3>
           <p className="mt-1 text-sm text-[#6B7280]">Enter a message and run classification.</p>
+
+          <div className="mt-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#6B7280]">Try a sample</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {EXAMPLE_TICKETS.map((ex) => (
+                <button
+                  key={ex.id}
+                  type="button"
+                  onClick={() => applyExample(ex)}
+                  className="rounded-lg border border-[#E5E7EB] bg-[#F5F7FB] px-3 py-1.5 text-left text-xs font-medium text-[#374151] transition hover:border-[#6366F1]/40 hover:bg-[#6366F1]/5"
+                >
+                  <span className="text-[#6366F1]">{ex.mainClass}</span>
+                  <span className="text-[#6B7280]"> · {ex.language}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <textarea
             rows={6}
             value={text}
@@ -61,23 +94,40 @@ export default function PredictionSection() {
           </button>
           {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
         </div>
+      ) : null}
 
-        <div id="voice" className="scroll-mt-24">
-          <AudioTicketForm
-            onPrediction={async (data) => {
-              setPrediction(data);
-              await refresh();
-            }}
-          />
-        </div>
-      </div>
+      {showVoice ? (
+        <AudioTicketForm
+          onPrediction={async (data) => {
+            setPrediction(data);
+            addFromPrediction({
+              ...data,
+              input_text: data.transcript_text || data.translated_text || "",
+            });
+            await refresh();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+
+  const resultsHint =
+    mode === "voice"
+      ? "Run a voice prediction to see structured results here."
+      : mode === "text"
+        ? "Run a text prediction to see structured results here."
+        : "Run a text or voice prediction to see structured results here.";
+
+  return (
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      {leftColumn}
 
       <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-lg font-semibold text-[#111827]">Results</h3>
         {prediction ? (
           <PredictionResultCards prediction={prediction} />
         ) : (
-          <p className="text-sm text-[#6B7280]">Run a text or voice prediction to see structured results here.</p>
+          <p className="text-sm text-[#6B7280]">{resultsHint}</p>
         )}
       </div>
     </div>

@@ -67,7 +67,7 @@ export default function Landing() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/dashboard#predictions"
+              to="/dashboard/predictions"
               className="inline-flex items-center rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-soft transition hover:bg-background"
             >
               Run a prediction
