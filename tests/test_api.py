@@ -54,6 +54,9 @@ def test_analytics_contract():
         "main_class_distribution",
         "sentiment_distribution",
         "language_distribution",
+        "kpi",
+        "category_distribution",
+        "ticket_trend",
     ]:
         assert key in payload
 

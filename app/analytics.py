@@ -17,6 +17,37 @@ def _value_counts(df: pd.DataFrame, column: str) -> List[Dict[str, Any]]:
     return counts.to_dict(orient="records")
 
 
+def _empty_kpi() -> Dict[str, Any]:
+    return {"total_tickets": 0, "complaints": 0, "avg_confidence": 0.0, "active_languages": 0}
+
+
+def _compute_kpi(df: pd.DataFrame, language_distribution: List[Dict[str, Any]]) -> Dict[str, Any]:
+    total = int(len(df))
+    complaints = int((df["main_class"] == "Complaint").sum()) if "main_class" in df.columns else 0
+    if "confidence_score" in df.columns and len(df):
+        conf = pd.to_numeric(df["confidence_score"], errors="coerce").dropna()
+        avg_conf = float(conf.mean()) if len(conf) else 0.0
+    else:
+        avg_conf = 0.0
+    active_languages = len(language_distribution)
+    return {
+        "total_tickets": total,
+        "complaints": complaints,
+        "avg_confidence": round(avg_conf, 4),
+        "active_languages": active_languages,
+    }
+
+
+def _compute_ticket_trend(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if df.empty or "timestamp" not in df.columns:
+        return []
+    indexed = df.set_index("timestamp").sort_index()
+    trend = indexed.resample("D").size().reset_index(name="count")
+    trend.columns = ["timestamp", "count"]
+    trend["timestamp"] = pd.to_datetime(trend["timestamp"], utc=True).dt.strftime("%Y-%m-%dT00:00:00Z")
+    return trend.to_dict(orient="records")
+
+
 def get_prediction_analytics() -> Dict[str, Any]:
     """Build aggregate analytics payload from prediction logs."""
     log_path = Path(PREDICTIONS_LOG_PATH)
@@ -26,6 +57,9 @@ def get_prediction_analytics() -> Dict[str, Any]:
             "main_class_distribution": [],
             "sentiment_distribution": [],
             "language_distribution": [],
+            "kpi": _empty_kpi(),
+            "category_distribution": [],
+            "ticket_trend": [],
         }
         return {**base_payload, **_model_metadata(), **compute_alerts(pd.DataFrame())}
 
@@ -36,6 +70,9 @@ def get_prediction_analytics() -> Dict[str, Any]:
             "main_class_distribution": [],
             "sentiment_distribution": [],
             "language_distribution": [],
+            "kpi": _empty_kpi(),
+            "category_distribution": [],
+            "ticket_trend": [],
         }
         return {**base_payload, **_model_metadata(), **compute_alerts(pd.DataFrame())}
 
@@ -71,11 +108,19 @@ def get_prediction_analytics() -> Dict[str, Any]:
         "main_class",
         ["Complaint", "Inquiry", "Feedback"],
     )
+    category_distribution = (
+        _value_counts(df, "business_category") if "business_category" in df.columns else []
+    )
+    ticket_trend = _compute_ticket_trend(df)
+    kpi = _compute_kpi(df, language_distribution)
     return {
         "total_predictions": int(len(df)),
         "main_class_distribution": class_distribution,
         "sentiment_distribution": sentiment_distribution,
         "language_distribution": language_distribution,
+        "kpi": kpi,
+        "category_distribution": category_distribution,
+        "ticket_trend": ticket_trend,
         **_model_metadata(),
         **compute_alerts(df),
     }
