@@ -7,7 +7,7 @@ from typing import Optional
 import httpx
 
 
-DEFAULT_MODEL = "gpt-4o-mini"
+DEFAULT_MODEL = "llama-3.1-8b-instant"
 
 
 def llm_is_enabled() -> bool:

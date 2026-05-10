@@ -1,33 +1,21 @@
-# AI-Powered Customer Support Ticket Classification System
+# AI-Powered Customer Support Intelligence Platform
 
-End-to-end MLOps project that classifies customer tickets into:
-- detailed `intent`
-- mapped `business_category`
-- `sentiment`
-- `priority`
-- `recommended_action`
+Advanced MLOps platform for intelligent support automation using a hierarchical output:
+- **main_class** (3 classes): `Complaint`, `Inquiry`, `Feedback`
+- **intent** as subclass under the main class
 
-It includes training, experiment tracking (MLflow), FastAPI model serving, a React (Vite) dashboard, Docker, and CI.
+## Core + Advanced Capabilities
 
-## Project Structure
-
-```text
-customer-support-mlops/
-├── data/
-├── notebooks/
-├── src/
-├── app/
-├── frontend/
-├── models/
-├── artifacts/
-├── logs/
-├── tests/
-├── mlruns/
-├── .github/workflows/
-├── Dockerfile
-├── requirements.txt
-└── README.md
-```
+- Intent classification (`utterance` -> `intent`)
+- 3-class hierarchy output (`main_class` + `intent`)
+- Business category mapping
+- Sentiment + priority prediction
+- Hybrid recommended actions (rules + Groq LLM fallback)
+- Multilingual workflow (English, Hindi, Spanish)
+- Voice ticket support (Groq Whisper STT)
+- Real-time analytics, alerts, trends, KPI cards
+- Automated retraining + model versioning + MLflow history
+- React-only frontend
 
 ## Setup
 
@@ -37,135 +25,83 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Keep dataset zip at `data/customer-support-intent-dataset.zip`.
+Dataset zip should exist at `data/customer-support-intent-dataset.zip`.
 
-## Train Model
-
-```bash
-PYTHONPATH=. python3 src/train.py
-```
-
-Saved artifacts:
-- `models/model.joblib`
-- `models/vectorizer.joblib`
-- `models/label_encoder.joblib`
-- `artifacts/metrics.json`
-- `artifacts/confusion_matrix.png`
-
-MLflow tracking directory:
-- `mlruns/`
-
-## Run API
+## Environment Configuration
 
 ```bash
-PYTHONPATH=. uvicorn app.main:app --reload
+cp .env.example .env
 ```
 
-### Predict Endpoint
+Required Groq fields:
 
-`POST /predict`
-
-Request:
-```json
-{
-  "text": "I forgot my password"
-}
+```bash
+OPENAI_API_KEY=gsk_your_groq_api_key_here
+OPENAI_MODEL=llama-3.1-8b-instant
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+GROQ_WHISPER_MODEL=whisper-large-v3
 ```
 
-Response:
-```json
-{
-  "intent": "recover_password",
-  "business_category": "Account Support",
-  "sentiment": "Negative",
-  "priority": "Medium",
-  "confidence_score": 0.91,
-  "recommended_action": "Send password reset instructions"
-}
+## Train / Retrain
+
+```bash
+PYTHONPATH=. python src/train.py
+PYTHONPATH=. python src/retrain.py
 ```
 
-## Run React Frontend (Vite)
+Retraining creates versioned models (`model_v1.pkl`, `model_v2.pkl`, ...) and updates `models/model_registry.json`.
 
+## Run Services
+
+### FastAPI
+```bash
+PYTHONPATH=. uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+### React dashboard
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Set API endpoint (optional):
+## Main API Endpoints
 
-```bash
-export VITE_API_BASE_URL=http://localhost:8000
+- `POST /predict` - text inference
+- `POST /predict/audio` - audio upload (`mp3`/`wav`) inference
+- `GET /analytics` - realtime KPI + charts payload
+- `GET /alerts` - complaint spike / critical incident alerts
+- `GET /logs/recent` - rolling prediction logs
+- `GET /model/status` - active model version and health
+
+## Sample Response
+
+```json
+{
+  "main_class": "Complaint",
+  "detected_language": "Hindi",
+  "translated_text": "My payment is not working",
+  "transcript_text": null,
+  "intent": "payment_issue",
+  "business_category": "Complaint",
+  "sentiment": "Negative",
+  "priority": "High",
+  "confidence_score": 0.91,
+  "recommended_action": "Escalate ticket to Billing Support Team",
+  "action_source": "llm"
+}
 ```
 
-Frontend dashboard includes:
-- total predictions
-- most common issues
-- sentiment/category/priority distributions
+## CI/CD + Scheduled Retraining
 
-## Business Category Mapping
-
-- Complaint: `payment_issue`, `complaint`, `delivery issues`
-- Inquiry: `check_invoice`, `delivery_period`, `track_order`
-- Feedback: `review`
-- Account Support: `recover_password`, `edit_account`, `switch_account`, `registration_problems`, `create_account`, `delete_account`
-- Order Management: `cancel_order`, `place_order`, `change_order`, `change_shipping_address`
-- Refund Support: `get_refund`, `track_refund`, `check_refund_policy`
-- Customer Support: `contact_customer_service`, `contact_human_agent`
-- Shipping Support: `delivery_options`, `set_up_shipping_address`
-
-## Docker
-
-```bash
-docker build -t customer-support-mlops .
-docker run -p 8000:8000 customer-support-mlops
-```
+- CI: `.github/workflows/ci.yml` (tests, retrain validation, frontend build, docker build)
+- Scheduled retraining:
+  - `.github/workflows/retrain-daily.yml`
+  - `.github/workflows/retrain-weekly.yml`
+  - `.github/workflows/retrain-monthly.yml`
 
 ## Testing
 
 ```bash
 PYTHONPATH=. pytest -q
 ```
-
-Frontend build check:
-
-```bash
-cd frontend
-npm run build
-```
-
-## Optional LLM-based Recommended Actions
-
-By default, recommendations are rule-based. You can enable LLM recommendations for:
-- fallback actions (`Route ticket to customer support triage queue`)
-- low-confidence model predictions
-
-Use a `.env` file in project root (Groq example):
-
-```bash
-cp .env.example .env
-```
-
-Set Groq values in `.env`:
-
-```bash
-OPENAI_API_KEY=gsk_your_groq_api_key_here
-OPENAI_MODEL=llama-3.1-8b-instant
-OPENAI_BASE_URL=https://api.groq.com/openai/v1
-```
-
-You can also export variables manually before running the API:
-
-```bash
-export OPENAI_API_KEY=your_api_key
-export OPENAI_MODEL=llama-3.1-8b-instant
-export OPENAI_BASE_URL=https://api.groq.com/openai/v1
-```
-
-## Notes
-
-- Sentiment analysis uses VADER.
-- Priority prediction is rule-based with critical keyword overrides.
-- Recommended action is hybrid: rules first, optional LLM enhancement with safe fallback.
-- Predictions are logged to `logs/predictions.csv`.
-- Analytics for frontend is exposed via `GET /analytics`.

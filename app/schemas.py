@@ -8,9 +8,14 @@ class PredictRequest(BaseModel):
 
 
 class PredictResponse(BaseModel):
+    detected_language: str
+    translated_text: str
+    transcript_text: str | None = None
+    main_class: str
     intent: str
     business_category: str
     sentiment: str
     priority: str
     confidence_score: float
     recommended_action: str
+    action_source: str

@@ -1,0 +1,31 @@
+name: Retrain Weekly
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 1"
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run retraining
+        env:
+          PYTHONPATH: .
+        run: python src/retrain.py
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-model-artifacts
+          path: |
+            models/*.pkl
+            models/model_registry.json
+            artifacts/*

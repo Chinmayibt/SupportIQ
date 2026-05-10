@@ -1,5 +1,6 @@
 """Central project configuration and filesystem paths."""
 
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -25,6 +26,17 @@ LABEL_ENCODER_PATH = MODELS_DIR / "label_encoder.joblib"
 METRICS_PATH = ARTIFACTS_DIR / "metrics.json"
 CONFUSION_MATRIX_PATH = ARTIFACTS_DIR / "confusion_matrix.png"
 PREDICTIONS_LOG_PATH = LOGS_DIR / "predictions.csv"
+MODEL_REGISTRY_PATH = MODELS_DIR / "model_registry.json"
+
+# LLM + voice + realtime config
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "llama-3.1-8b-instant")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1")
+GROQ_WHISPER_MODEL = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3")
+
+COMPLAINT_SPIKE_THRESHOLD = int(os.getenv("COMPLAINT_SPIKE_THRESHOLD", "5"))
+CRITICAL_INCIDENT_THRESHOLD = int(os.getenv("CRITICAL_INCIDENT_THRESHOLD", "3"))
+ALERT_WINDOW_MINUTES = int(os.getenv("ALERT_WINDOW_MINUTES", "30"))
 
 
 def ensure_directories() -> None:

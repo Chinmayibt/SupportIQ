@@ -26,6 +26,11 @@ jobs:
           PYTHONPATH: .
         run: pytest -q
 
+      - name: Validate retraining pipeline
+        env:
+          PYTHONPATH: .
+        run: python src/retrain.py
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

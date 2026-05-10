@@ -11,3 +11,6 @@ mlflow
 pytest
 httpx
 python-dotenv
+langdetect
+deep-translator
+python-multipart
