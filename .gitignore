@@ -1,0 +1,13 @@
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+*.pyc
+frontend/node_modules/
+frontend/dist/
+models/*.joblib
+artifacts/*.png
+artifacts/*.json
+logs/predictions.csv
+logs/*.csv
+mlruns/
