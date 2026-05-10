@@ -1,6 +1,6 @@
 {
-  "active_version": "model_v1.pkl",
-  "last_retrained_at": "2026-05-10T17:39:28.330606+00:00",
+  "active_version": "model_v3.pkl",
+  "last_retrained_at": "2026-05-10T18:22:04.218919+00:00",
   "last_accuracy": 0.991442542787286,
   "history": [
     {
@@ -8,6 +8,18 @@
       "created_at": "2026-05-10T17:39:28.330606+00:00",
       "accuracy": 0.991442542787286,
       "mlflow_run_id": "4e834a68a0464891aac454c33f50a700"
+    },
+    {
+      "version": "model_v2.pkl",
+      "created_at": "2026-05-10T18:20:18.195166+00:00",
+      "accuracy": 0.991442542787286,
+      "mlflow_run_id": "38ac86081b424daba8aae6dc19cc52a7"
+    },
+    {
+      "version": "model_v3.pkl",
+      "created_at": "2026-05-10T18:22:04.218919+00:00",
+      "accuracy": 0.991442542787286,
+      "mlflow_run_id": "57bdca63336746deacd95dd9b89f0847"
     }
   ]
 }
